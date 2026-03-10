@@ -41,7 +41,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
-    password TEXT
+    password TEXT,
+    role TEXT DEFAULT 'viewer'
   );
 
   CREATE TABLE IF NOT EXISTS categories (
@@ -68,11 +69,21 @@ try {
   // Column likely already exists
 }
 
+// Add role column to users if it doesn't exist
+try {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'viewer'");
+} catch (e) {
+  // Column likely already exists
+}
+
 // Create default admin user if none exists
 const adminUser = db.prepare("SELECT * FROM users WHERE username = 'admin'").get();
 if (!adminUser) {
   const hash = bcrypt.hashSync("admin", 10);
-  db.prepare("INSERT INTO users (username, password) VALUES (?, ?)").run("admin", hash);
+  db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run("admin", hash, "admin");
+} else {
+  // Ensure the admin user has the admin role if it was created before the role column
+  db.prepare("UPDATE users SET role = 'admin' WHERE username = 'admin'").run();
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-me";
@@ -90,6 +101,15 @@ const authenticate = (req: any, res: any, next: any) => {
   }
 };
 
+const requireRole = (roles: string[]) => {
+  return (req: any, res: any, next: any) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Forbidden: insufficient permissions" });
+    }
+    next();
+  };
+};
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -98,7 +118,7 @@ async function startServer() {
   app.use("/uploads", express.static(uploadsDir));
 
   // Upload API
-  app.post("/api/upload", authenticate, upload.single("file"), (req, res) => {
+  app.post("/api/upload", authenticate, requireRole(['admin', 'editor']), upload.single("file"), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -114,46 +134,50 @@ async function startServer() {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
-    res.json({ token, user: { id: user.id, username: user.username } });
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
   });
 
   app.get("/api/auth/me", authenticate, (req: any, res) => {
     res.json(req.user);
   });
 
-  app.get("/api/users", authenticate, (req, res) => {
-    const users = db.prepare("SELECT id, username FROM users").all();
+  app.get("/api/users", authenticate, requireRole(['admin']), (req, res) => {
+    const users = db.prepare("SELECT id, username, role FROM users").all();
     res.json(users);
   });
 
-  app.post("/api/users", authenticate, (req, res) => {
-    const { username, password } = req.body;
+  app.post("/api/users", authenticate, requireRole(['admin']), (req, res) => {
+    const { username, password, role } = req.body;
     try {
       const hash = bcrypt.hashSync(password, 10);
-      const info = db.prepare("INSERT INTO users (username, password) VALUES (?, ?)").run(username, hash);
-      res.json({ id: info.lastInsertRowid, username });
+      const userRole = role || 'viewer';
+      const info = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(username, hash, userRole);
+      res.json({ id: info.lastInsertRowid, username, role: userRole });
     } catch (err) {
       res.status(400).json({ error: "Username already exists" });
     }
   });
 
-  app.put("/api/users/:id", authenticate, (req, res) => {
+  app.put("/api/users/:id", authenticate, requireRole(['admin']), (req, res) => {
     const id = parseInt(req.params.id, 10);
-    const { password } = req.body;
-    if (!password) {
-      return res.status(400).json({ error: "Password is required" });
-    }
+    const { password, role } = req.body;
+    
     try {
-      const hash = bcrypt.hashSync(password, 10);
-      db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hash, id);
+      if (password) {
+        const hash = bcrypt.hashSync(password, 10);
+        db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hash, id);
+      }
+      if (role) {
+        db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
+      }
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ error: "Failed to update password" });
+      res.status(500).json({ error: "Failed to update user" });
     }
   });
 
-  app.delete("/api/users/:id", authenticate, (req, res) => {
+  app.delete("/api/users/:id", authenticate, requireRole(['admin']), (req, res) => {
     const id = parseInt(req.params.id, 10);
     const userCount: any = db.prepare("SELECT COUNT(*) as count FROM users").get();
     if (userCount.count <= 1) {
@@ -169,7 +193,7 @@ async function startServer() {
     res.json(categories);
   });
 
-  app.post("/api/categories", authenticate, (req, res) => {
+  app.post("/api/categories", authenticate, requireRole(['admin', 'editor']), (req, res) => {
     const { name, color, icon } = req.body;
     try {
       const info = db.prepare("INSERT INTO categories (name, color, icon) VALUES (?, ?, ?)").run(name, color || "#4f46e5", icon || "");
@@ -179,7 +203,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/categories/:id", authenticate, (req, res) => {
+  app.delete("/api/categories/:id", authenticate, requireRole(['admin', 'editor']), (req, res) => {
     const id = parseInt(req.params.id, 10);
     db.prepare("DELETE FROM categories WHERE id = ?").run(id);
     res.json({ success: true });
@@ -191,13 +215,13 @@ async function startServer() {
     res.json(links);
   });
 
-  app.post("/api/links", authenticate, (req, res) => {
+  app.post("/api/links", authenticate, requireRole(['admin', 'editor']), (req, res) => {
     const { title, url, icon, category_id } = req.body;
     const info = db.prepare("INSERT INTO links (title, url, icon, category_id) VALUES (?, ?, ?, ?)").run(title, url, icon || "", category_id || null);
     res.json({ id: info.lastInsertRowid, title, url, icon, category_id });
   });
 
-  app.delete("/api/links/:id", authenticate, (req, res) => {
+  app.delete("/api/links/:id", authenticate, requireRole(['admin', 'editor']), (req, res) => {
     const id = parseInt(req.params.id, 10);
     db.prepare("DELETE FROM links WHERE id = ?").run(id);
     res.json({ success: true });
