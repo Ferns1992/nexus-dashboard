@@ -5,7 +5,7 @@ services:
     build: .
     container_name: nexus-dashboard
     ports:
-      - "6000:3000"
+      - "4010:3000"
     volumes:
       - nexus-data:/app/data
     environment:
