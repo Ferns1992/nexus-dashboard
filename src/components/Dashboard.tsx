@@ -41,6 +41,9 @@ export default function Dashboard() {
   const [editingUser, setEditingUser] = useState<number | null>(null);
   const [editPassword, setEditPassword] = useState("");
   const [editRole, setEditRole] = useState<'admin' | 'editor' | 'viewer'>("viewer");
+  const [userToDelete, setUserToDelete] = useState<number | null>(null);
+  const [editingCategory, setEditingCategory] = useState<number | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
 
   const linkFileInputRef = useRef<HTMLInputElement>(null);
   const categoryFileInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +147,23 @@ export default function Dashboard() {
     }
   };
 
+  const handleUpdateCategory = async (id: number) => {
+    if (!editCategoryName.trim()) return;
+    const res = await fetch(`/api/categories/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: editCategoryName }),
+    });
+    if (res.ok) {
+      setEditingCategory(null);
+      setEditCategoryName("");
+      fetchData();
+    }
+  };
+
   const handleDeleteCategory = async (id: number) => {
     const res = await fetch(`/api/categories/${id}`, {
       method: "DELETE",
@@ -197,11 +217,17 @@ export default function Dashboard() {
   };
 
   const handleDeleteUser = async (id: number) => {
-    const res = await fetch(`/api/users/${id}`, {
+    setUserToDelete(id);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (userToDelete === null) return;
+    const res = await fetch(`/api/users/${userToDelete}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
+      setUserToDelete(null);
       fetchUsers();
     } else {
       const data = await res.json();
@@ -502,21 +528,52 @@ export default function Dashboard() {
                 </form>
                 <div className="space-y-2">
                   {categories.map((cat) => (
-                    <div key={cat.id} className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        {cat.icon ? (
-                          <img src={cat.icon} alt={cat.name} className="w-6 h-6 rounded-md object-cover" />
-                        ) : (
-                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                        )}
-                        <span>{cat.name}</span>
+                    <div key={cat.id} className="flex flex-col gap-2 p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          {cat.icon ? (
+                            <img src={cat.icon} alt={cat.name} className="w-6 h-6 rounded-md object-cover" />
+                          ) : (
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                          )}
+                          <span>{cat.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingCategory(editingCategory === cat.id ? null : cat.id);
+                              setEditCategoryName(cat.name);
+                            }}
+                            className="p-1.5 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg transition-colors"
+                            title="Edit Category"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="p-1.5 text-zinc-400 dark:text-zinc-500 hover:text-red-400 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteCategory(cat.id)}
-                        className="p-1.5 text-zinc-400 dark:text-zinc-500 hover:text-red-400 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {editingCategory === cat.id && (
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                          <input
+                            type="text"
+                            placeholder="New Category Name"
+                            value={editCategoryName}
+                            onChange={(e) => setEditCategoryName(e.target.value)}
+                            className="flex-1 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                          />
+                          <button
+                            onClick={() => handleUpdateCategory(cat.id)}
+                            className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -642,6 +699,31 @@ export default function Dashboard() {
                   </section>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete User Confirmation Modal */}
+      {userToDelete !== null && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm overflow-hidden p-6">
+            <h3 className="text-lg font-medium mb-2">Delete User</h3>
+            <p className="text-zinc-500 dark:text-zinc-400 mb-6">
+              Are you sure you want to delete this user? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

@@ -203,6 +203,36 @@ async function startServer() {
     }
   });
 
+  app.put("/api/categories/:id", authenticate, requireRole(['admin', 'editor']), (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const { name, color, icon } = req.body;
+    
+    try {
+      const updates = [];
+      const values = [];
+      if (name !== undefined) {
+        updates.push("name = ?");
+        values.push(name);
+      }
+      if (color !== undefined) {
+        updates.push("color = ?");
+        values.push(color);
+      }
+      if (icon !== undefined) {
+        updates.push("icon = ?");
+        values.push(icon);
+      }
+      
+      if (updates.length > 0) {
+        values.push(id);
+        db.prepare(`UPDATE categories SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update category" });
+    }
+  });
+
   app.delete("/api/categories/:id", authenticate, requireRole(['admin', 'editor']), (req, res) => {
     const id = parseInt(req.params.id, 10);
     db.prepare("DELETE FROM categories WHERE id = ?").run(id);
