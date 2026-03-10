@@ -112,7 +112,7 @@ const requireRole = (roles: string[]) => {
 
 async function startServer() {
   const app = express();
-  const PORT = 4020;
+  const PORT = 3000;
 
   app.use(express.json());
   app.use("/uploads", express.static(uploadsDir));
@@ -272,7 +272,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT} (0.0.0.0)`);
   });
 }
 
