@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  nexus:
+    build: .
+    container_name: nexus-dashboard
+    ports:
+      - "3000:3000"
+    volumes:
+      - nexus-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=your-super-secret-jwt-key
+    restart: unless-stopped
+
+volumes:
+  nexus-data:
