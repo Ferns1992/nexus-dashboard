@@ -112,7 +112,7 @@ const requireRole = (roles: string[]) => {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = 6000;
 
   app.use(express.json());
   app.use("/uploads", express.static(uploadsDir));
