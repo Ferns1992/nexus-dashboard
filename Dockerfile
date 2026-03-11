@@ -25,6 +25,6 @@ RUN npm install tsx
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.ts ./server.ts
 
-EXPOSE 3000
+EXPOSE 4020
 
 CMD ["npx", "tsx", "server.ts"]
