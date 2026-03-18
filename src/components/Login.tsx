@@ -35,7 +35,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Nexus</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Nexus Dashboard</h2>
           <p className="text-zinc-500 dark:text-zinc-400 mt-2">Sign in to your dashboard</p>
         </div>
 

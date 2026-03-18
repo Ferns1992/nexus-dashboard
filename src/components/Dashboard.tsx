@@ -249,7 +249,7 @@ export default function Dashboard() {
               <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-black font-bold">
                 N
               </div>
-              <h1 className="text-xl font-semibold tracking-tight">Nexus</h1>
+              <h1 className="text-xl font-semibold tracking-tight">Nexus Dashboard</h1>
             </div>
             
             {user && (
