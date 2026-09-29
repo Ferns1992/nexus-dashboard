@@ -1,61 +1,77 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { api, clearToken, setUnauthorizedHandler, storeToken } from "../lib/api";
+import type { Session } from "../types";
 
-interface User {
-  id: number;
-  username: string;
-  role: 'admin' | 'editor' | 'viewer';
-}
-
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  login: (token: string, user: User) => void;
-  logout: () => void;
+interface AuthContextValue {
+  user: Session | null;
   loading: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [user, setUser] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (token) {
-      fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => {
-          if (res.ok) return res.json();
-          throw new Error("Invalid token");
-        })
-        .then((data) => {
-          setUser(data);
-        })
-        .catch(() => {
-          logout();
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
-
-  const login = (newToken: string, newUser: User) => {
-    localStorage.setItem("token", newToken);
-    setToken(newToken);
-    setUser(newUser);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
+  const clearSession = useCallback(() => {
+    clearToken();
     setUser(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(clearSession);
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!localStorage.getItem("nexus_token")) {
+      setLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const session = await api.me();
+        if (!cancelled) setUser(session);
+      } catch {
+        if (!cancelled) clearSession();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clearSession]);
+
+  const login = useCallback(async (username: string, password: string) => {
+    const result = await api.login(username, password);
+    storeToken(result.token);
+    setUser(result.user);
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await api.logout();
+    } catch {
+      // cookie may already be gone; clearing locally is what matters
+    }
+    clearSession();
+  }, [clearSession]);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await api.changePassword(currentPassword, newPassword);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

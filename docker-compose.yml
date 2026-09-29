@@ -1,18 +1,43 @@
-version: '3.8'
-
 services:
   nexus:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nexus-dashboard:latest
     container_name: nexus-dashboard
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "4020"
     ports:
-      - "4020:4020"
+      - "127.0.0.1:4020:4020"
     volumes:
       - nexus-data:/app/data
-    environment:
-      - NODE_ENV=production
-      - JWT_SECRET=your-super-secret-jwt-key
-      - PORT=4020
-    restart: unless-stopped
+    networks:
+      - tunnel
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4020/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tunnel:
+    external: true
+    name: cloudflared_tunnel
 
 volumes:
   nexus-data:
+    name: nexus-data

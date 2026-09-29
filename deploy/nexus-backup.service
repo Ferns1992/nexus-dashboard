@@ -1,0 +1,8 @@
+[Unit]
+Description=Nexus Dashboard SQLite backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec nexus-dashboard node /app/scripts/backup.mjs
