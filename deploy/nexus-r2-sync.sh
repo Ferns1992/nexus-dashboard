@@ -24,10 +24,14 @@ fi
 # `copy`, never `sync`: if the local run produced nothing, a sync would happily
 # empty the bucket and destroy every offsite backup we have.
 log "uploading snapshots to $REMOTE"
+# A single --filter, not --include/--exclude: rclone warns that mixing the two
+# parses in indeterminate order, which would make the shm/wal exclusion a coin
+# flip. Order matters here, add is last so it cannot be overridden.
 rclone copy "$DATA_DIR/backups" "$REMOTE/backups" \
-  --include '*.sqlite' \
-  --exclude '*-shm' \
-  --exclude '*-wal' \
+  --filter '- *-shm' \
+  --filter '- *-wal' \
+  --filter '+ *.sqlite' \
+  --filter '- *' \
   --transfers 2 \
   --stats-one-line
 
