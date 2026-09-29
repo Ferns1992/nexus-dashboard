@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { HardDriveDownload, RefreshCw, Trash2 } from "lucide-react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError } from "../../lib/api";
 import type { UploadFile } from "../../types";
 import { formatBytes, formatRelativeTime } from "../../lib/format";
 import { secondaryButtonClass } from "../../lib/styles";

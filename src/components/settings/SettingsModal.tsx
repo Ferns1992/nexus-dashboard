@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { HardDriveDownload, LayoutGrid, Users } from "lucide-react";
-import { api } from "../lib/api";
+import { api } from "../../lib/api";
 import type { Category, ManagedUser, Role, UploadFile } from "../../types";
 import { Modal } from "../ui/Modal";
 import { CategoriesPanel } from "./CategoriesPanel";

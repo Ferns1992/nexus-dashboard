@@ -547,8 +547,11 @@ async function startServer() {
   app.use(
     "/uploads",
     authenticate,
-    (req: Request, res: Response, next: NextFunction) => {
-      res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    (_req: Request, res: Response, next: NextFunction) => {
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+      );
       next();
     },
     express.static(uploadsDir, {

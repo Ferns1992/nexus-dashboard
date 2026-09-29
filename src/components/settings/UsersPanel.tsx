@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Check, Pencil, Trash2, User, X } from "lucide-react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError } from "../../lib/api";
 import type { ManagedUser, Role } from "../../types";
-import { inputClass, labelClass, secondaryButtonClass } from "../lib/styles";
+import { inputClass, labelClass, secondaryButtonClass } from "../../lib/styles";
 import { useToast } from "../../context/ToastContext";
 
 interface Props {

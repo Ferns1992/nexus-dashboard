@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Check, LayoutGrid, Pencil, Trash2, X } from "lucide-react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError } from "../../lib/api";
 import type { Category } from "../../types";
 import { inputClass, labelClass, secondaryButtonClass } from "../../lib/styles";
 import { IconField } from "../IconField";
