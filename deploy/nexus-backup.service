@@ -1,8 +1,12 @@
 [Unit]
-Description=Nexus Dashboard SQLite backup
+Description=Nexus Dashboard backup: local SQLite snapshot + off-site mirror to Cloudflare R2
 Requires=docker.service
 After=docker.service
 
 [Service]
 Type=oneshot
+# Local snapshot first, taken inside the container where the database lives.
 ExecStart=/usr/bin/docker exec nexus-dashboard node /app/scripts/backup.mjs
+# Then push off-site. This step failing must fail the unit, so a broken backup
+# shows up as a failed timer rather than silently doing nothing.
+ExecStart=/usr/local/bin/nexus-r2-sync.sh
