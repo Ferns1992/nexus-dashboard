@@ -45,12 +45,12 @@ Then open <http://127.0.0.1:4020>.
 
 ### Exposing it through a tunnel
 
-The compose file joins the container to the external network `cloudflared_tunnel`. Point a
-Cloudflare tunnel ingress rule at `http://nexus-dashboard:4020`.
+The compose file joins the container to the external network `cloudflared_default`, which the
+`cloudflared` container is already attached to. Point a tunnel ingress rule at
+`http://nexus-dashboard:4020` and Docker's embedded DNS resolves the name.
 
 ```bash
-docker network create cloudflared_tunnel
-docker network connect cloudflared_tunnel cloudflared
+docker network inspect cloudflared_default --format '{{range .Containers}}{{.Name}} {{end}}'
 ```
 
 ## Configuration
