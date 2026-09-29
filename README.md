@@ -13,7 +13,7 @@ React 19 + Vite frontend, Express + SQLite backend, one Docker container.
 - Three roles: `admin`, `editor`, `viewer`
 - Self-service password change for every account
 - Rate-limited login, strict URL validation, and security headers
-- Nightly SQLite backups with automatic retention pruning
+- Nightly SQLite backups, mirrored off-site to Cloudflare R2
 
 ## Roles
 
@@ -94,12 +94,36 @@ database. It prunes backups older than `NEXUS_BACKUP_RETAIN_DAYS` (default 14).
 docker exec nexus-dashboard node /app/scripts/backup.mjs
 ```
 
-`deploy/nexus-backup.service` and `deploy/nexus-backup.timer` schedule it nightly at 03:17.
+A local snapshot alone is not a backup, since it lives on the same machine as the app.
+`deploy/nexus-r2-sync.sh` mirrors snapshots and `uploads/` to the `nexus-backups` R2 bucket,
+keeping the newest 7 copies there.
+
+Uploads are included on purpose: the `links.icon` column points at files in `uploads/`, so a
+database restored without them comes back with broken images.
+
+The push runs on the host rather than inside the container, so the R2 credentials in
+`/root/.config/rclone/rclone.conf` are never reachable from the web app. It uses `rclone copy`
+and not `sync` — if the local step produced nothing, a sync would empty the bucket and destroy
+every offsite copy.
+
+`deploy/nexus-backup.service` and `deploy/nexus-backup.timer` run both steps nightly at 03:17.
+The unit fails if the upload fails, so a broken backup surfaces as a failed timer instead of
+silently doing nothing.
 
 ```bash
+install -m 0755 deploy/nexus-r2-sync.sh /usr/local/bin/nexus-r2-sync.sh
 cp deploy/nexus-backup.service deploy/nexus-backup.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now nexus-backup.timer
+systemctl start nexus-backup.service   # run once now to confirm
+```
+
+To restore, pull a snapshot down and point the app at it:
+
+```bash
+rclone copy R2:nexus-backups/backups /tmp/restore
+docker cp /tmp/restore/<snapshot>.sqlite nexus-dashboard:/app/data/database.sqlite
+docker compose restart
 ```
 
 ## Data
