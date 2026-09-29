@@ -26,8 +26,11 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
+# No compiler toolchain here on purpose: better-sqlite3 is already built in
+# the build stage and its native binary is carried over by the node_modules
+# copy, so the runtime only needs curl for the healthcheck.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ curl \
+  && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/node_modules ./node_modules
